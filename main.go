@@ -1,6 +1,7 @@
-package randomWiki
+package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -16,7 +17,7 @@ const baseDomain = "https://en.wikipedia.org"
 
 var visited map[string]bool
 var nonHTML map[string]bool
-var count = 0
+var count int
 var whitelistStrings = []string{
 	"Special",
 	"Wikipedia",
@@ -76,6 +77,7 @@ func getURLHostName(urlStr string) string {
 
 func getRandomURL(urls []string) string {
 	randomIndex := rand.Intn(len(urls))
+
 	wikiURL := baseDomain + urls[randomIndex]
 
 	if visited[wikiURL] || nonHTML[wikiURL] {
@@ -100,7 +102,7 @@ func crawl(urlStr string) string {
 		return urlStr
 	}
 
-	if count++; count >= 11 {
+	if count++; count >= 100 {
 		return urlStr
 	}
 
@@ -111,9 +113,7 @@ func crawl(urlStr string) string {
 	return crawl(randomURL)
 }
 
-func randomWiki() {
-	rand.Seed(time.Now().UTC().UnixNano())
-
+func main() {
 	visited = make(map[string]bool)
 	nonHTML = make(map[string]bool)
 
@@ -121,7 +121,18 @@ func randomWiki() {
 
 	visited[initialPoint] = true
 
-	wikiArticle := crawl(initialPoint)
+	http.HandleFunc("/wiki/", func(w http.ResponseWriter, r *http.Request) {
+		rand.Seed(time.Now().UTC().UnixNano())
+		count = 0
 
-	fmt.Println("READ: ", wikiArticle)
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
+		data := make(map[string]string)
+
+		data["url"] = crawl(initialPoint)
+
+		json.NewEncoder(w).Encode(data)
+	})
+
+	http.ListenAndServe(":8080", nil)
 }
