@@ -102,7 +102,7 @@ func crawl(urlStr string) string {
 		return urlStr
 	}
 
-	if count++; count >= 100 {
+	if count++; count >= 10 {
 		return urlStr
 	}
 
