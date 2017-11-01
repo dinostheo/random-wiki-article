@@ -30,7 +30,7 @@ var whitelistStrings = []string{
 }
 
 var contentTypeRegexp = regexp.MustCompile(`^text\/html`)
-var aHrefRegexp = regexp.MustCompile(`\/wiki\/[^` + strings.Join(whitelistStrings, "|") + `:]([\w\-\.,@?^=%&amp;:/~\+#]*[\w\-\@?^=%&amp;/~\+#])`)
+var aHrefRegexp = regexp.MustCompile(`\/wiki\/[^` + strings.Join(whitelistStrings, "|") + `:]([\w\-\.,@?^=%&amp;\+#]*[\w\-\@?^=%&amp;\+#])`)
 
 func findUrls(urlStr string) (result []string) {
 	res, err := http.Get(urlStr)
