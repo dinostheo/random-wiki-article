@@ -17,6 +17,7 @@ import (
 
 var visited map[string]bool
 var nonHTML map[string]bool
+
 var count int
 var whitelistStrings = []string{
 	"Special",
@@ -31,6 +32,16 @@ var whitelistStrings = []string{
 
 var contentTypeRegexp = regexp.MustCompile(`^text\/html`)
 var aHrefRegexp = regexp.MustCompile(`\/wiki\/[^` + strings.Join(whitelistStrings, "|") + `:]([\w\-\.,@?^=%&amp;\+#]*[\w\-\@?^=%&amp;\+#])`)
+
+type result struct {
+	URL   string   `json:"url"`
+	Graph []string `json:"graph"`
+}
+
+type Languages []struct {
+	English string `json:"English"`
+	Alpha2  string `json:"alpha2"`
+}
 
 func findUrls(urlStr string) (result []string) {
 	res, err := http.Get(urlStr)
@@ -77,14 +88,10 @@ func getURLHostName(urlStr string) string {
 
 func getRandomURL(baseDomain string, urls []string) string {
 	randomIndex := rand.Intn(len(urls))
-
 	unEscapedPath, _ := url.PathUnescape(urls[randomIndex])
-
 	wikiURL := baseDomain + unEscapedPath
 
 	if visited[wikiURL] || nonHTML[wikiURL] {
-		fmt.Println("--- Avoiding circulation or Non HTML --- ", wikiURL)
-
 		if len(urls) == 1 {
 			p, _ := url.PathUnescape(urls[0])
 
@@ -119,16 +126,6 @@ func crawl(baseDomain string, urlStr string, graphState []string) (string, []str
 	return crawl(baseDomain, randomURL, graphState)
 }
 
-type result struct {
-	URL   string   `json:"url"`
-	Graph []string `json:"graph"`
-}
-
-type Languages []struct {
-	English string `json:"English"`
-	Alpha2  string `json:"alpha2"`
-}
-
 func main() {
 	jsonData, err := ioutil.ReadFile("languages.json")
 
@@ -139,9 +136,9 @@ func main() {
 
 	var languages Languages
 
-	languageList := make(map[string]string)
-
 	json.NewDecoder(bytes.NewReader(jsonData)).Decode(&languages)
+
+	languageList := make(map[string]string)
 
 	for _, lang := range languages {
 		languageList[lang.Alpha2] = lang.English
