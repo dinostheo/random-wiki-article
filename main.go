@@ -15,8 +15,6 @@ import (
 	"time"
 )
 
-const baseDomain = "https://en.wikipedia.org"
-
 var visited map[string]bool
 var nonHTML map[string]bool
 var count int
@@ -77,27 +75,31 @@ func getURLHostName(urlStr string) string {
 	return u.Hostname()
 }
 
-func getRandomURL(urls []string) string {
+func getRandomURL(baseDomain string, urls []string) string {
 	randomIndex := rand.Intn(len(urls))
 
-	wikiURL := baseDomain + urls[randomIndex]
+	unEscapedPath, _ := url.PathUnescape(urls[randomIndex])
+
+	wikiURL := baseDomain + unEscapedPath
 
 	if visited[wikiURL] || nonHTML[wikiURL] {
 		fmt.Println("--- Avoiding circulation or Non HTML --- ", wikiURL)
 
 		if len(urls) == 1 {
-			return baseDomain + urls[0]
+			p, _ := url.PathUnescape(urls[0])
+
+			return baseDomain + p
 		}
 
 		urls = append(urls[:randomIndex], urls[randomIndex+1:]...)
 
-		return getRandomURL(urls)
+		return getRandomURL(baseDomain, urls)
 	}
 
 	return wikiURL
 }
 
-func crawl(urlStr string, graphState []string) (string, []string) {
+func crawl(baseDomain string, urlStr string, graphState []string) (string, []string) {
 	urls := findUrls(urlStr)
 
 	if len(urls) == 0 {
@@ -108,13 +110,13 @@ func crawl(urlStr string, graphState []string) (string, []string) {
 		return urlStr, graphState
 	}
 
-	randomURL := getRandomURL(urls)
+	randomURL := getRandomURL(baseDomain, urls)
 
 	visited[randomURL] = true
 
 	graphState = append(graphState, randomURL)
 
-	return crawl(randomURL, graphState)
+	return crawl(baseDomain, randomURL, graphState)
 }
 
 type result struct {
@@ -149,10 +151,6 @@ func main() {
 		visited = make(map[string]bool)
 		nonHTML = make(map[string]bool)
 
-		initialPoint := baseDomain + "/wiki/Main_Page"
-
-		visited[initialPoint] = true
-
 		language := strings.SplitN(r.URL.Path, "/", 3)[2]
 
 		if _, ok := languageList[language]; !ok {
@@ -163,6 +161,11 @@ func main() {
 			return
 		}
 
+		baseDomain := fmt.Sprintf("https://%s.wikipedia.org", language)
+		initialPoint := baseDomain + "/wiki/Main_Page"
+
+		visited[initialPoint] = true
+
 		rand.Seed(time.Now().UTC().UnixNano())
 		count = 0
 
@@ -170,7 +173,7 @@ func main() {
 
 		graphState := make([]string, 0)
 
-		wikiURL, pathToArticle := crawl(initialPoint, graphState)
+		wikiURL, pathToArticle := crawl(baseDomain, initialPoint, graphState)
 
 		data := result{
 			wikiURL,
