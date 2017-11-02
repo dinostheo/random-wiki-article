@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -120,15 +122,47 @@ type result struct {
 	Graph []string `json:"graph"`
 }
 
+type Languages []struct {
+	English string `json:"English"`
+	Alpha2  string `json:"alpha2"`
+}
+
 func main() {
-	visited = make(map[string]bool)
-	nonHTML = make(map[string]bool)
+	jsonData, err := ioutil.ReadFile("languages.json")
 
-	initialPoint := baseDomain + "/wiki/Main_Page"
+	if err != nil {
+		fmt.Println("Failed to read languages.json")
+		os.Exit(1)
+	}
 
-	visited[initialPoint] = true
+	var languages Languages
+
+	languageList := make(map[string]string)
+
+	json.NewDecoder(bytes.NewReader(jsonData)).Decode(&languages)
+
+	for _, lang := range languages {
+		languageList[lang.Alpha2] = lang.English
+	}
 
 	http.HandleFunc("/wiki/", func(w http.ResponseWriter, r *http.Request) {
+		visited = make(map[string]bool)
+		nonHTML = make(map[string]bool)
+
+		initialPoint := baseDomain + "/wiki/Main_Page"
+
+		visited[initialPoint] = true
+
+		language := strings.SplitN(r.URL.Path, "/", 3)[2]
+
+		if _, ok := languageList[language]; !ok {
+			err := errors.New("Invalid language code: " + language)
+
+			http.Error(w, err.Error(), http.StatusBadRequest)
+
+			return
+		}
+
 		rand.Seed(time.Now().UTC().UnixNano())
 		count = 0
 
