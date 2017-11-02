@@ -95,22 +95,29 @@ func getRandomURL(urls []string) string {
 	return wikiURL
 }
 
-func crawl(urlStr string) string {
+func crawl(urlStr string, graphState []string) (string, []string) {
 	urls := findUrls(urlStr)
 
 	if len(urls) == 0 {
-		return urlStr
+		return urlStr, graphState
 	}
 
 	if count++; count >= 10 {
-		return urlStr
+		return urlStr, graphState
 	}
 
 	randomURL := getRandomURL(urls)
 
 	visited[randomURL] = true
 
-	return crawl(randomURL)
+	graphState = append(graphState, randomURL)
+
+	return crawl(randomURL, graphState)
+}
+
+type result struct {
+	URL   string   `json:"url"`
+	Graph []string `json:"graph"`
 }
 
 func main() {
@@ -127,9 +134,14 @@ func main() {
 
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-		data := make(map[string]string)
+		graphState := make([]string, 0)
 
-		data["url"] = crawl(initialPoint)
+		wikiURL, pathToArticle := crawl(initialPoint, graphState)
+
+		data := result{
+			wikiURL,
+			pathToArticle,
+		}
 
 		json.NewEncoder(w).Encode(data)
 	})
