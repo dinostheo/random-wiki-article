@@ -126,25 +126,8 @@ func crawl(baseDomain string, urlStr string, graphState []string) (string, []str
 	return crawl(baseDomain, randomURL, graphState)
 }
 
-func main() {
-	jsonData, err := ioutil.ReadFile("languages.json")
-
-	if err != nil {
-		fmt.Println("Failed to read languages.json")
-		os.Exit(1)
-	}
-
-	var languages Languages
-
-	json.NewDecoder(bytes.NewReader(jsonData)).Decode(&languages)
-
-	languageList := make(map[string]string)
-
-	for _, lang := range languages {
-		languageList[lang.Alpha2] = lang.English
-	}
-
-	http.HandleFunc("/wiki/", func(w http.ResponseWriter, r *http.Request) {
+func generateRandomArticle(languageList map[string]string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		visited = make(map[string]bool)
 		nonHTML = make(map[string]bool)
 
@@ -179,6 +162,27 @@ func main() {
 
 		json.NewEncoder(w).Encode(data)
 	})
+}
+
+func main() {
+	jsonData, err := ioutil.ReadFile("languages.json")
+
+	if err != nil {
+		fmt.Println("Failed to read languages.json")
+		os.Exit(1)
+	}
+
+	var languages Languages
+
+	json.NewDecoder(bytes.NewReader(jsonData)).Decode(&languages)
+
+	languageList := make(map[string]string)
+
+	for _, lang := range languages {
+		languageList[lang.Alpha2] = lang.English
+	}
+
+	http.Handle("/wiki/", generateRandomArticle(languageList))
 
 	http.ListenAndServe(":8080", nil)
 }
