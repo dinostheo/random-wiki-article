@@ -1,3 +1,12 @@
+/*
+It randomly navigates to a localized wikipedia page starting from the main page.
+It will follow 10 random wikipedia links and it will return the url of a random article.
+If no language is provided it will use the english language.
+
+An example request for an english article is the following:
+
+	http://localhost:8080/wiki/en
+*/
 package main
 
 import (
@@ -132,6 +141,10 @@ func generateRandomArticle(languageList map[string]string) http.Handler {
 		nonHTML = make(map[string]bool)
 
 		language := strings.SplitN(r.URL.Path, "/", 3)[2]
+
+		if language == "" {
+			language = "en"
+		}
 
 		if _, ok := languageList[language]; !ok {
 			err := errors.New("Invalid language code: " + language)
