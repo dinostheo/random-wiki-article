@@ -1,18 +1,6 @@
-/*
-It randomly navigates to a localized wikipedia page starting from the main page.
-It will follow 10 random wikipedia links and it will return the url of a random article.
-If no language is provided it will use the english language.
-
-An example request for an english article is the following:
-
-	http://localhost:8080/wiki/en
-*/
-package main
+package randomwiki
 
 import (
-	"bytes"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -26,7 +14,6 @@ import (
 
 var visited map[string]bool
 var nonHTML map[string]bool
-
 var count int
 var whitelistStrings = []string{
 	"Special",
@@ -41,16 +28,6 @@ var whitelistStrings = []string{
 
 var contentTypeRegexp = regexp.MustCompile(`^text\/html`)
 var aHrefRegexp = regexp.MustCompile(`\/wiki\/[^` + strings.Join(whitelistStrings, "|") + `:]([\w\-\.,@?^=%&amp;\+#]*[\w\-\@?^=%&amp;\+#])`)
-
-type result struct {
-	URL   string   `json:"url"`
-	Graph []string `json:"graph"`
-}
-
-type Languages []struct {
-	English string `json:"English"`
-	Alpha2  string `json:"alpha2"`
-}
 
 func findUrls(urlStr string) (result []string) {
 	res, err := http.Get(urlStr)
@@ -135,67 +112,19 @@ func crawl(baseDomain string, urlStr string, graphState []string) (string, []str
 	return crawl(baseDomain, randomURL, graphState)
 }
 
-func generateRandomArticle(languageList map[string]string) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		visited = make(map[string]bool)
-		nonHTML = make(map[string]bool)
+func Generate(language string) (string, []string) {
+	visited = make(map[string]bool)
+	nonHTML = make(map[string]bool)
 
-		language := strings.SplitN(r.URL.Path, "/", 3)[2]
+	baseDomain := fmt.Sprintf("https://%s.wikipedia.org", language)
+	initialPoint := baseDomain + "/wiki/Main_Page"
 
-		if language == "" {
-			language = "en"
-		}
+	visited[initialPoint] = true
 
-		if _, ok := languageList[language]; !ok {
-			err := errors.New("Invalid language code: " + language)
+	rand.Seed(time.Now().UTC().UnixNano())
+	count = 0
 
-			http.Error(w, err.Error(), http.StatusBadRequest)
+	graphState := make([]string, 0)
 
-			return
-		}
-
-		baseDomain := fmt.Sprintf("https://%s.wikipedia.org", language)
-		initialPoint := baseDomain + "/wiki/Main_Page"
-
-		visited[initialPoint] = true
-
-		rand.Seed(time.Now().UTC().UnixNano())
-		count = 0
-
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-
-		graphState := make([]string, 0)
-
-		wikiURL, pathToArticle := crawl(baseDomain, initialPoint, graphState)
-
-		data := result{
-			wikiURL,
-			pathToArticle,
-		}
-
-		json.NewEncoder(w).Encode(data)
-	})
-}
-
-func main() {
-	jsonData, err := ioutil.ReadFile("languages.json")
-
-	if err != nil {
-		fmt.Println("Failed to read languages.json")
-		os.Exit(1)
-	}
-
-	var languages Languages
-
-	json.NewDecoder(bytes.NewReader(jsonData)).Decode(&languages)
-
-	languageList := make(map[string]string)
-
-	for _, lang := range languages {
-		languageList[lang.Alpha2] = lang.English
-	}
-
-	http.Handle("/wiki/", generateRandomArticle(languageList))
-
-	http.ListenAndServe(":8080", nil)
+	return crawl(baseDomain, initialPoint, graphState)
 }
